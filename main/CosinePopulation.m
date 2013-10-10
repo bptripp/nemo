@@ -44,11 +44,16 @@ classdef CosinePopulation < Population
         end
         
         % see Population.getDrive(...)
-        function drive = getDrive(cp, x, indices)
+        function drive = getDrive(cp, x, varargin)
             if ~isempty(cp.offsets)
                 x = x - repmat(cp.offsets, 1, size(x, 2));
             end
-            drive = cp.encoders(:,indices)' * x;
+            
+            if ~isempty(varargin) % indices are specified   
+                drive = cp.encoders(:,varargin{1})' * x;
+            else 
+                drive = cp.encoders' * x;
+            end
         end
         
         % TODO: abstract method for Population

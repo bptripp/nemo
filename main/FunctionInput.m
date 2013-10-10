@@ -12,12 +12,14 @@ classdef FunctionInput < Node
         % func: n-dimensional function of time
         function in = FunctionInput(func)
             in.func = func;
+            in.name = func2str(func);
             class(func)
             assert(strcmp(class(func), 'function_handle'), 'Expected a function handle');
             testOutput = func(0);
             assert(size(testOutput, 2) == 1, 'Function output should be a column vector')
             dim = size(testOutput, 1);
             in.origins{1} = Origin('X', dim);
+            in.origins{1}.node = in;
             in.run(0, 0);
         end
 

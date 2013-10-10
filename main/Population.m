@@ -53,8 +53,6 @@ classdef Population < Node
             x = zeros(size(p.radii));
             biasDrive = zeros(1, p.spikeGenerator.n);
             for i = 1:length(p.terminations)
-                %TODO: run with weights
-                %TODO: transition between weights and encoders over time
                 t = p.terminations{i};
                 run(t, start, stop);
                 if ~isempty(t.biasEncoders)

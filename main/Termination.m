@@ -8,6 +8,7 @@ classdef Termination < Probeable
         % A Name that distinguishes this from other Termination on the same
         %   Node
         name = [];
+        node = [];
     end
     
     properties (SetAccess = private)

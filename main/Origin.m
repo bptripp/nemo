@@ -10,6 +10,8 @@ classdef Origin < Probeable & ModeConfigurable
         
         % Length of output vector
         dim = [];
+        
+        node = [];
     end
     
     properties (Access = private)

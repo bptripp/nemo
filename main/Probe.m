@@ -11,14 +11,16 @@ classdef Probe < handle
     end
     
     properties (Access = private) 
-        probeable = [];
-        
         history = [];
         times = [];
         dim = [];
         len = [];
         
         spike = 0;
+    end
+    
+    properties (SetAccess = private)
+        probeable = [];
     end
     
     methods (Access = public)

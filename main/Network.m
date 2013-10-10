@@ -88,6 +88,7 @@ classdef Network < Node
         %       Network)
         function exposeOrigin(n, origin)
             n.origins{length(n.origins)+1} = origin;
+            origin.node = n;
         end
         
         % termination: A Termination within this Network that is to be available for 
@@ -95,6 +96,7 @@ classdef Network < Node
         %       Network)
         function exposeTermination(n, termination)
             n.terminations{length(n.terminations)+1} = termination;
+            termination.node = n;
         end
 
         % Resets the Nodes and Probes in this Network

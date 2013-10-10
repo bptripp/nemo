@@ -29,7 +29,7 @@ function testAdaptingSpikeGenerator()
     n = Network(.001);
     n.addNode(input);
     n.addNode(test);
-    n.addProjection(input.origins{1}, testInput);
+    n.addConnection(input.origins{1}, testInput);
     spikeProbe = n.addProbe(sg, SpikeGenerator.STATE_SPIKES);
 
     tic

@@ -137,14 +137,6 @@ classdef DecodedOrigin < Origin
         
     end
     
-    methods (Access = private)
-        function updatePCDecoders(do) 
-            if ~isempty(do.decoders) && ~isempty(do.acitivityU) && ~isempty(do.acitivityS)
-                do.PCDecoders = do.decoders * do.acitivityU * do.acitivityS;
-            end
-        end
-    end
-    
     methods (Static) 
 
 %         function [n, points] = getPoints(d, varargin)

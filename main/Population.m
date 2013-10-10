@@ -120,6 +120,9 @@ classdef Population < Node
         %   rate over the population.
         function origin = addOrigin(p, name, f, varargin)
             assert(strcmp(class(f), 'function_handle'), 'Expected a function handle');
+            for i = 1:length(p.origins)
+                assert(~strcmp(name, p.origins{i}.name), sprintf('There is already an origin named %s', name))
+            end
             
             if isempty(varargin) || isempty(varargin{1})
                 origin = DecodedOrigin(name, f, p);
@@ -133,6 +136,7 @@ classdef Population < Node
             end
             
             p.origins{length(p.origins)+1} = origin;
+            origin.node = p;
         end
 
         % Adds an Origin that provides rate / spike outputs (depending on
@@ -143,6 +147,7 @@ classdef Population < Node
             origin = DecodedOrigin('AXON', @(x) zeros(n,size(x,2)), p);
             setDecoders(origin, eye(n));
             p.origins{length(p.origins)+1} = origin;
+            origin.node = p;
         end
 
         % Removes named Origin
@@ -152,6 +157,7 @@ classdef Population < Node
             for i = 1:length(p.origins)
                 if strcmp(name, p.origins{i}.name)
                     toRemove = [toRemove i];
+                    p.origins{i}.node = [];
                 end
             end
             toKeep = setdiff(1:length(p.origins), toRemove);
@@ -160,6 +166,9 @@ classdef Population < Node
         
         % Removes all origins
         function removeOrigins(p)
+            for i = 1:length(p.origins)
+                p.origins{i}.node = [];
+            end
             p.origins = {};
         end
 
@@ -171,6 +180,7 @@ classdef Population < Node
         function termination = addTermination(p, name, timeConstant, transform)
             assert(size(transform, 1) == p.dimension, 'Transform should have %i rows', p.dimension);
             termination = Termination(name, timeConstant, transform, 1); %TODO: how to handle step ratios?
+            termination.node = p;
             p.terminations{length(p.terminations)+1} = termination;
         end
         
@@ -181,6 +191,7 @@ classdef Population < Node
             for i = 1:length(p.terminations)
                 if strcmp(name, p.terminations{i}.name)
                     toRemove = [toRemove i];
+                    p.terminations{i}.node = [];
                 end
             end
             toKeep = setdiff(1:length(p.terminations), toRemove);
@@ -189,6 +200,9 @@ classdef Population < Node
 
         % Removes all Terminations
         function removeTerminations(p)
+            for i = 1:length(p.terminations)
+                p.terminations{i}.node = [];
+            end
             p.terminations = {};
         end
 

@@ -71,10 +71,10 @@ end
 function plotPopulation2D(population, x, T, indices, plotColor)
     dims = find(isnan(x));
     r1 = population.radii(dims(1));
-    points1 = -r1:(r1/20):r1;
+    points1 = population.offsets(dims(1)) + (-r1:(r1/20):r1);
     n1 = length(points1);
     r2 = population.radii(dims(2));
-    points2 = -r2:(r2/25):r2;
+    points2 = population.offsets(dims(2)) + (-r2:(r2/25):r2);
     n2 = length(points2);
 
     points = [reshape(points1' * ones(1, n2), 1, n1*n2); reshape(ones(n1, 1) * points2, 1, n1*n2)]; 
@@ -92,11 +92,11 @@ end
 function plotPopulation3D(population, x, T, indices, plotColor)
     dims = find(isnan(x));
     r1 = population.radii(dims(1));
-    points1 = -r1:(r1/5):r1;
+    points1 = population.offsets(dims(1)) + (-r1:(r1/5):r1);
     r2 = population.radii(dims(2));
-    points2 = -r2:(r2/5):r2;
+    points2 = population.offsets(dims(2)) + (-r2:(r2/5):r2);
     r3 = population.radii(dims(3));
-    points3 = -r3:(r3/5):r3;
+    points3 = population.offsets(dims(3)) + (-r3:(r3/5):r3);
 
     [X, Y, Z] = meshgrid(points1, points2, points3);
     points = [reshape(X, 1, numel(X)); reshape(Y, 1, numel(Y)); reshape(Z, 1, numel(Z))];

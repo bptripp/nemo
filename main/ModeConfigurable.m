@@ -22,12 +22,28 @@ classdef ModeConfigurable < handle
         % decoded from spiking activity.         
         DEFAULT_MODE = 4;
         
-        % Principal components of neuron responses are simulated. 
-        PC_MODE = 5;
+        COARSE_MODE = 5;
+        
+        CLUSTERED_MODE = 6;
+        
+        PRINCIPAL_MODE = 7;
+        
+        WEIGHT_MODE = 8;
+        
+        % Simplifications subject to tolerances. 
+%         REDUCED_MODE = 5;
+
+%         % Principal components of neuron responses are simulated. 
+%         PC_MODE = 5;
     end
     
     properties (SetAccess = private)
         simulationMode  = ModeConfigurable.DEFAULT_MODE;        
+    end
+    
+    properties (Access = public)
+        encoderClusters = [];
+        weightRank = [];        
     end
     
     properties (Access = public)
@@ -37,13 +53,16 @@ classdef ModeConfigurable < handle
     methods (Access = public)
         
         % mode: One of the constant DIRECT_MODE, RATE_MODE, or DEFAULT_MODE
-        function setSimulationMode(mc, mode)
+        function setSimulationMode(mc, mode, varargin)
             assert(mode == ModeConfigurable.DIRECT_MODE ...
                 || mode == ModeConfigurable.RATE_MODE ...
                 || mode == ModeConfigurable.DEFAULT_MODE ...
                 || mode == ModeConfigurable.CONSTANT_RATE_MODE, 'Unknown simulation mode')
             mc.simulationMode = mode;
+            %TODO: demand a parameter for CLUSTERED_MODE and PRINCIPAL_MODE
         end
+        
+        
     end
     
 end

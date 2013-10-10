@@ -14,11 +14,20 @@ classdef Node < ModeConfigurable
         
         % start: start time (s)
         % stop: stop time (s)
-        run(n, start, stop);
+        % originNames: cell array of names of origins that must be updated
+        %   in this run (empty = all)
+        % originDims: cell array of vectors of dimension numbers of the
+        %   corresponding originNames (empty = all dimensions)
+        run(n, start, stop, originNames, originDims);
+        
     end
     
     methods
         
+        %TODO: reset to last time step? or another point? how much history
+        %do we want to save? not much at anything other than coarse (could
+        %be at regular intervals)
+
         % resets origins and terminations
         function reset(n)
             for i = 1:length(n.origins)

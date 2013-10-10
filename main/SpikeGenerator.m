@@ -1,5 +1,9 @@
 % A spike generation model for a population. (Spiking for the whole
 % population is simulated together to allow vectorization.)
+
+% TODO: allow specified neurons in run(...)
+% TODO: when switching to spike mode, initialize neurons based on last rate
+%   or cluster run
 classdef SpikeGenerator < Probeable 
     
     properties (Constant)
@@ -17,24 +21,49 @@ classdef SpikeGenerator < Probeable
         n = 0;
     end
     
+    properties (SetAccess = protected)
+        mergedCount = []; %number of neurons merged to create each neuron (1 for neurons 1 to n, 2 or more for grouped indices)
+    end
+    
     methods (Abstract)
 
+        % drive: net radial drive entering each neuron's spike
+        %   generator (n by 1)
+        % startTime: beginning of simulation time 
+        % endTime: end of simulation time
+        % indices (optional): indices of neurons and/or clusters to run
+        %   (default 1:n)
+        % spikes: 1 for each neuron that spiked during the integration
+        %   step, 0 for those that didn't (n by 1)
+        spikes = integrate(sg, drive, startTime, endTime, varargin);
+        
         % drive: net radial drive entering each neuron's spike
         %   generator (n by 1)
         % startTime: beginning of simulation time (relevant if rate is not
         %   a static function of current, eg with adaptation)
         % endTime: end of simulation time (if a static rate is needed, this
         %   may be the same as startTime)
-        % rates: spike rates (n by 1) at endTime
-        rates = getRates(sg, drive, startTime, endTime);
+        % indices (optional): indices of neurons and/or clusters for which
+        %   to return rates (default 1:n)
+        % rates: spike rates (n by 1 or length(indices) by 1) at endTime
+        rates = getRates(sg, drive, startTime, endTime, varargin);
         
-        % drive: net radial drive entering each neuron's spike
-        %   generator (n by 1)
-        % startTime: beginning of simulation time 
-        % endTime: end of simulation time
-        % spikes: 1 for each neuron that spiked during the integration
-        %   step, 0 for those that didn't (n by 1)
-        spikes = integrate(sg, drive, startTime, endTime);
+        % Creates a merged neuron with properties that are intermediate to
+        % those of the given indices. This is to support reduced
+        % simulations. 
+        % 
+        % indices: indices of neurons from which to create a new neuron
+        %   that has properties that are roughly the average of those in
+        %   the merged group. Indices <=n are neurons, and those >n are
+        %   past merges (in which case the property averages should be
+        %   weighted according to the size of previously merged groups). 
+        addMerge(sg, indices)
+        
+        % Removes a merged neuron. 
+        % 
+        % index: indices of merges to remove (must be >n) 
+        removeMerge(sg, indices)
+
     end
     
     methods (Access = public)

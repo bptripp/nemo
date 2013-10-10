@@ -7,7 +7,8 @@
 % dims (optional): a list of one or two axes along which to plot the error, 
 %   if the decoded function is more than two-dimensional 
 % outDim (optional): dimension of output to plot (one at a time; default 1) 
-function plotDecodedOrigin(population, originName, varargin)
+% indices (optional): indices of active neurons and/or clusters (default 1:n)
+function mse = plotDecodedOrigin(population, originName, varargin)
     if length(population.radii) == 1
         dims = 1;
     else 
@@ -17,6 +18,7 @@ function plotDecodedOrigin(population, originName, varargin)
         dims = varargin{1};
         assert(length(dims) == 1 || length(dims) == 2, 'Dimensions to plot should have length 1 or 2, not %i', length(dims));
     end
+    indices = NemoUtils.getOptionalArg(varargin, 3, 1:population.spikeGenerator.n, 'indices', []);
     
     origin = [];
     for i = 1:length(population.origins)
@@ -40,10 +42,11 @@ function plotDecodedOrigin(population, originName, varargin)
         ideal = ideal(outDim,:);
         x = zeros(length(population.radii), length(points));
         x(dims,:) = points;
-        approx = getOriginOutput(origin, x);
+        approx = getOriginOutput(origin, x, indices);
         approx = approx(outDim,:);
 %         rates = getRates(population, x, 0, 0);
-%         approx = origin.decoders * rates;
+%         approx = origin.decoders * rates; 
+        mse = mean((approx-ideal).^2)^.5;
         figure, hold on
         plot(points, ideal, 'k')
         plot(points, approx, 'k--')
@@ -51,7 +54,7 @@ function plotDecodedOrigin(population, originName, varargin)
         ylabel('decoded function')
         ha2 = axes('XAxisLocation', 'top', 'YAxisLocation', 'right', 'Color', 'none', 'XTick', [], 'YColor', 'r', 'Position', get(gca, 'Position'));   
         line(points, approx - ideal, 'Color', 'r', 'Parent', ha2)
-        ylabel('decoding error')
+        ylabel('decoding error')        
     elseif length(dims) == 2
         r = population.radii(dims);
         x1 = -r(1):(r(1)/20):r(1);
@@ -62,25 +65,26 @@ function plotDecodedOrigin(population, originName, varargin)
         x(dims,:) = points;
         ideal = origin.f(x);
         ideal = ideal(outDim,:);
-        approx = getOriginOutput(origin, x);
+        approx = getOriginOutput(origin, x, indices);
         approx = approx(outDim,:);
+        mse = mean((approx-ideal).^2)^.5;
 %         rates = getRates(population, x, 0, 0);
 %         approx = origin.decoders * rates;
         figure, mesh(X1, X2, reshape(ideal, length(x2), length(x1))), zlabel('ideal')
         figure, mesh(X1, X2, reshape(approx, length(x2), length(x1))), zlabel('decoded')
-        figure, mesh(X1, X2, reshape(approx-ideal, length(x2), length(x1))), zlabel('error')
+        figure, mesh(X1, X2, reshape(approx-ideal, length(x2), length(x1))), zlabel('error'), title(sprintf('RMS %f', mse))
     else 
         error('Can''t plot decoding over >2 dimensions')
     end
     
 end
 
-function output = getOriginOutput(o, x)
-    rates = getRates(o.population, x, 0, 0);
+function output = getOriginOutput(o, x, indices)
+    rates = getRates(o.population, x, 0, 0, indices);
     nx = size(rates, 2);
     output = zeros(o.dim, nx);
     for i = 1:nx
-        o.setActivity(0, rates(:,i));
+        o.setActivity(0, rates(:,i), indices);
         output(:,i) = getOutput(o);
     end
 end

@@ -7,6 +7,11 @@ classdef Population < Node
         spikeGenerator = [];        
         dimension = [];
         ellipsoidRegion = [];
+        indices = [];
+    end
+    
+    properties (SetAccess = protected)
+        Z = [];
     end
     
     properties (Access = private)
@@ -19,9 +24,11 @@ classdef Population < Node
 
     methods (Abstract)
         % x: instantaneous variable represented by the population
+        % indices (optional): indices of neurons and/or clusters for which
+        %   to return drive (default 1:n)
         % drive: radial drive of each neuron (proportional to net driving
         %   current)
-        drive = getDrive(p, x);        
+        drive = getDrive(p, x, varargin);        
     end
     
     methods (Access = public)
@@ -47,8 +54,54 @@ classdef Population < Node
                 p.ellipsoidRegion = varargin{1};
             end
         end
-
+        
+        % Finds a pattern of neuron clustering that minimizes simulation 
+        % time within the error tolerances of this Population's
+        % DecodedOrigins. Updates p.indices.
+        function updateClusterIndices(p)
+            n = p.spikeGenerator.n;
+            
+            %TODO: upper and lower limits 
+            %TODO: interpolate from selected levels
+            %TODO: bidirectional search from arbitrary point (importantly,
+            %   the last point in a simulation where salience changes
+            %   gradually -- use optional arg indices)
+            
+            doInd = []; % indices of decoded origins within p.origins            
+            outInd = []; % start and end indices of each decoded origin's outputs within error vector
+            for i = 1:length(p.origins)
+                if isa(p.origins{i}, 'DecodedOrigin')
+                    doInd = [doInd; i];   
+                    
+                    highestExistingInd = 0;
+                    if ~isempty(outInd) 
+                        highestExistingInd = max(outInd(:,2));
+                    end
+                    
+                    outInd = [outInd; highestExistingInd+1 highestExistingInd+p.origins{i}.dim]; 
+                end
+            end
+            
+            tolerances = zeros(1, max(outInd(:,2)));
+            for i = 1:length(doInd)
+                tolerances(outInd(i,:)) = p.origins{doInd(i)}.tolerance;
+            end
+            
+            clusterInd = 2*n-1; %start at root cluster 
+            currentErrors = concatErrors(clusterInd, outInd, p.origins(doInd));
+            while max(currentErrors > tolerances)
+                values = getSplitValues(clusterInd, n, outInd, p.origins(doInd));
+                correspondance = values * max(0, (currentErrors - tolerances)');
+                [Y, I] = max(correspondance);
+                clusterInd = [clusterInd(1:I-1) clusterInd(I+1:end) p.Z(clusterInd(I)-n,:)];
+                currentErrors = concatErrors(clusterInd, outInd, p.origins(doInd));
+            end
+            
+            p.indices = clusterInd;
+        end
+        
         % see Node
+        % TODO: use current cluster indices in correct mode
         function run(p, start, stop)
             x = zeros(size(p.radii));
             biasDrive = zeros(1, p.spikeGenerator.n);
@@ -102,10 +155,13 @@ classdef Population < Node
         % x: value of represented vector
         % startTime: see SpikeGenerator.getRates(...)
         % endTime: see SpikeGenerator.getRates(...)
+        % indices (optional): indices of neurons and/or clusters for which
+        %   to return rates (default 1:n)
         % rates: spike rates of neurons in the population (n by 1) at endTime
-        function rates = getRates(p, x, startTime, endTime)
-            drive = getDrive(p, x);
-            rates = getRates(p.spikeGenerator, drive, startTime, endTime);
+        function rates = getRates(p, x, startTime, endTime, varargin)
+            indices = NemoUtils.getOptionalArg(varargin, 1, 1:p.spikeGenerator.n, 'indices', []);
+            drive = getDrive(p, x, indices);
+            rates = getRates(p.spikeGenerator, drive, startTime, endTime, indices);
         end
         
         % name: The name of the Origin
@@ -262,4 +318,19 @@ classdef Population < Node
     end
 end
 
+% Concatenates errors from DecodedOrigins
+function errors = concatErrors(indices, outInd, origins)
+    errors = zeros(1, max(outInd(:,2)));
+    for i = 1:length(origins)
+        errors(outInd(i,:)) = getErrorEstimate(origins{i}, indices);
+    end
+end
+
+function values = getSplitValues(clusterInd, n, outInd, origins)
+    splittables = find(clusterInd > n);
+    values = zeros(length(clusterInd), max(outInd(:,2)));
+    for i = 1:length(origins)
+        values(splittables,outInd(i,:)) = origins{i}.splitValues(:,clusterInd(splittables)-n)';
+    end
+end
 

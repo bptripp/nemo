@@ -21,6 +21,15 @@ classdef Network < Node
         % start: beginning of simulation time (s)
         % stop: end of simulation time (s)
         function run(n, start, stop)
+            %TODO: in reduced mode, may have to run specific state
+            %variables (neurons with substantial decoders related to
+            %specific outputs) multiple times with different fidelities
+            %TODO: first run everything coarsely and calculate tolerances,
+            %then revise
+            %TODO: maybe control fidelity with different modes, run nodes
+            %wrt specific origins & dimensions; some modes have parameters
+            %
+            
             t = start;
             
             while t < stop

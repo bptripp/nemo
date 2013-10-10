@@ -14,11 +14,15 @@ classdef CosinePopulation < Population
             % name: Name of the population (should be unique within a Network)
             % encoders (optional): length(radii) X n matrix of encoding
             %   vectors (default random uniformly distributed)
+            % ellipsoidRegion (optional): 1 (default) if the represented region
+            %   region is ellipsoidal; 0 if it is a box. 
+            % offsets (optional): centre of point distribution in each
+            %   dimension 
             
-            cp = cp@Population(radii, spikeGenerator, name);
+            cp = cp@Population(radii, spikeGenerator, name, varargin{2:end});
             n = spikeGenerator.n;
             
-            if ~isempty(varargin)
+            if ~isempty(varargin) && ~isempty(varargin{1})
                 cp.encoders = varargin{1};
                 assert(size(cp.encoders, 2) == n, 'Expected same number of encoders as neurons in spike generator')
                 assert(size(cp.encoders, 1) == length(radii), 'Expected encoders to have same length as radii')

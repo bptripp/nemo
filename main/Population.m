@@ -53,6 +53,8 @@ classdef Population < Node
             x = zeros(size(p.radii));
             biasDrive = zeros(1, p.spikeGenerator.n);
             for i = 1:length(p.terminations)
+                %TODO: run with weights
+                %TODO: transition between weights and encoders over time
                 t = p.terminations{i};
                 run(t, start, stop);
                 if ~isempty(t.biasEncoders)
@@ -89,7 +91,7 @@ classdef Population < Node
 
         % domain: limits of represented area in each dimension
         function domain = getDomain(p)
-            domain = p.centres + [-p.radii p.radii];
+            domain = p.offsets + [-p.radii p.radii];
         end
         
         % dim: dimension of the represented variable
@@ -123,7 +125,7 @@ classdef Population < Node
             
             if isempty(varargin) || isempty(varargin{1})
                 origin = DecodedOrigin(name, f, p);
-                origin.findDecoders([], .002);
+                origin.findDecoders([], 0, 0, .05);
             elseif isa(varargin{1}, 'DecodedOrigin')
                 origin = varargin{1};
             else 

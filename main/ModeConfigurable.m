@@ -21,17 +21,10 @@ classdef ModeConfigurable < handle
         % Neurons communicate through spikes, and represented variables are
         % decoded from spiking activity.         
         DEFAULT_MODE = 4;
-        
-        % Principal components of neuron responses are simulated. 
-        PC_MODE = 5;
     end
     
     properties (SetAccess = private)
         simulationMode  = ModeConfigurable.DEFAULT_MODE;        
-    end
-    
-    properties (Access = public)
-        nPC = 10;
     end
     
     methods (Access = public)

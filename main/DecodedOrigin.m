@@ -5,16 +5,10 @@ classdef DecodedOrigin < Origin
     properties (SetAccess = private)
         population = [];
         f = [];
-        PCDecoders = [];        
     end
     
     properties (SetAccess = protected)
         decoders = [];
-    end
-    
-    properties (Access = private)
-        activityU = [];
-        activityS = [];
     end
     
     methods (Access = public)
@@ -44,7 +38,6 @@ classdef DecodedOrigin < Origin
         function setDecoders(do, decoders)
             assert(size(decoders, 1) == do.dim, 'Each column of decoders should have length %i (not %i)', do.dim, size(decoders,1)); 
             do.decoders = decoders;
-            updatePCDecoders(do);            
         end
         
         % points (optional): points at which firing rates are sampled
@@ -101,22 +94,11 @@ classdef DecodedOrigin < Origin
             invgamma = pinv(gamma);
             do.decoders = (invgamma*V)';
             
-            updatePCDecoders(do);
-            
             if nargout > 0
                 varargout{1} = norms;
             end
         end
 
-        % U: first part of singular value decomposition of activities (neuron by sample)
-        % S: second part of SVD
-        function initPC(do, U, S)
-            assert(~xor(isempty(U), isempty(S)));
-            do.activityU = U;
-            do.activityS = S;
-            updatePCDecoders(do);
-        end
-        
         function rates = getNoisyRates(do, points, T, relNoise)
             rates = getRates(do.population, points, 0, T);
             if (relNoise > 0)
@@ -150,20 +132,6 @@ classdef DecodedOrigin < Origin
         % x: State variable represented by the associated Population
         function setX(do, time, x)
             output = do.f(x);
-            setOutput(do, time, output);
-        end
-        
-        % To be called by the associated Population before the end of a run(...)
-        % when operating in PC_MODE. 
-        % 
-        % time: Simulation time (at end of run step)
-        % x: Principal components of activities of the associated Population
-        function setPC(do, time, PC)
-            assert(~isempty(do.PCDecoders), 'Both initPC and either setDecoders or findDecoders must be called before this DecodedOrigin is used in PC mode');
-            assert(size(PC, 2) == 1, 'PCs should be a column vector');
-            assert(size(PC, 1) <= size(do.PCDecoders, 2), 'PCs should be a vector of length <= %i', size(do.PCDecoders, 2));
-            
-            output = do.PCDecoders * activity;
             setOutput(do, time, output);
         end
         

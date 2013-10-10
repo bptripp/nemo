@@ -22,16 +22,14 @@ classdef ModeConfigurable < handle
         % decoded from spiking activity.         
         DEFAULT_MODE = 4;
         
-        % Principal components of neuron responses are simulated. 
-        PC_MODE = 5;
+        % The outputs of DecodedOrigins in DEFAULT_MODE are modelled to 
+        % approximate spiking network behaviour, but individual neurons are
+        % not simulated.
+        POPULATION_MODE = 5;
     end
     
     properties (SetAccess = private)
         simulationMode  = ModeConfigurable.DEFAULT_MODE;        
-    end
-    
-    properties (Access = public)
-        nPC = 10;
     end
     
     methods (Access = public)
@@ -39,6 +37,7 @@ classdef ModeConfigurable < handle
         % mode: One of the constant DIRECT_MODE, RATE_MODE, or DEFAULT_MODE
         function setSimulationMode(mc, mode)
             assert(mode == ModeConfigurable.DIRECT_MODE ...
+                || mode == ModeConfigurable.POPULATION_MODE ...
                 || mode == ModeConfigurable.RATE_MODE ...
                 || mode == ModeConfigurable.DEFAULT_MODE ...
                 || mode == ModeConfigurable.CONSTANT_RATE_MODE, 'Unknown simulation mode')

@@ -7,6 +7,7 @@ classdef Population < Node
         spikeGenerator = [];        
         dimension = [];
         ellipsoidRegion = [];
+        populationModeModel = [];
     end
     
     properties (Access = private)
@@ -15,6 +16,7 @@ classdef Population < Node
         directMode = ModeConfigurable.DIRECT_MODE;
         defaultMode = ModeConfigurable.DEFAULT_MODE;
         constantRateMode = ModeConfigurable.CONSTANT_RATE_MODE;
+        populationMode = ModeConfigurable.POPULATION_MODE;
     end
 
     methods (Abstract)
@@ -48,9 +50,26 @@ classdef Population < Node
             end
         end
 
+        % Initializes a model for simulations in POPULATION_MODE. This
+        % should be called after any changes to the Population, before
+        % any simulations in POPULATION_MODE. It is called automatically
+        % on POPULATION_MODE simulation if is has never been called before,
+        % but subsequent changes to the Population (e.g. new Origins) are 
+        % not detected. 
+        function initPopulationMode(p) 
+            p.populationModeModel = PopulationModeModel.getModel(p);
+        end
+        
         % see Node
-        function run(p, start, stop)
-            x = zeros(size(p.radii));
+        % x (optional): value of state variable, not including additions 
+        %   from various terminations (default 0)
+        function run(p, start, stop, varargin)
+            if isempty(varargin)
+                x = zeros(size(p.radii));
+            else 
+                x = varargin{1};
+            end
+            
             biasDrive = zeros(1, p.spikeGenerator.n);
             for i = 1:length(p.terminations)
                 t = p.terminations{i};
@@ -66,6 +85,22 @@ classdef Population < Node
             if (simulationMode == p.directMode) 
                 for i = 1:length(p.origins)
                     setX(p.origins{i}, stop, x);
+                end
+            elseif (simulationMode == p.populationMode)
+                if isempty(p.populationModeModel)
+                    initPopulationMode(p);
+                end
+                
+                oi = p.populationModeModel.originIndices;
+                bias = getBias(p.populationModeModel, x);
+                noise = getNoise(p.populationModeModel, stop);
+%                 [bias, noise] = getError(p.populationModeModel, x, start, stop);
+
+                for i = 1:length(p.origins)
+                    ind = find(oi == i);
+                    
+                    ideal = p.origins{i}.f(x);
+                    setOutput(p.origins{i}, stop, ideal + bias(ind) + noise(ind));
                 end
             else  
                 drive = getDrive(p, x) + biasDrive';

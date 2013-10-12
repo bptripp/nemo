@@ -1,6 +1,6 @@
 % Unit tests for PopulationModeModel
 
-function testPopulationMode() 
+function pop2 = testPopulationMode() 
     showPlots = 1;
 
     % neuron parameters ... 
@@ -19,24 +19,49 @@ function testPopulationMode()
 %     initPopulationMode(pop1);
 %     testNoiseGeneration(pop1);
 %     test1DSimulation(pop1, showPlots)
-%     
-%     % create 2D population ... 
-%     pop2 = CosinePopulation([1; 1], sg, 'test2');  
-%     pop2.addOrigin('x', @(x) x);
-%     initPopulationMode(pop2);
+    
+    % create 2D population ... 
+    pop2 = CosinePopulation([1; 1], sg, 'test2');  
+    pop2.addOrigin('x', @(x) x);
+    initPopulationMode(pop2);
+    testBias(pop2);
 %     testSimulation(pop2, showPlots)
-%     
+    
 %     % create 3D population ... 
 %     pop3 = CosinePopulation([1; 1; 1], sg, 'test3'); 
 %     pop3.addOrigin('x', @(x) x);    
 %     initPopulationMode(pop3);
+%     testBias(pop3);
 %     testSimulation(pop3, showPlots)
+%     
+%     % create 25D population ... 
+%     pop25 = CosinePopulation(ones(25, 1), sg, 'test25');  
+%     pop25.addOrigin('x', @(x) x);
+%     initPopulationMode(pop25); 
+%     testBias(pop25);
+%     testSimulation(pop25, showPlots)
+end
+
+function testBias(pop)
+    n = 100;
+    points = Population.genRandomPoints(n, 2*pop.radii, 0);
+    rates = getRates(pop, points, 0, 0);
+
+    [simBias, ideal] = getBiasSamples(pop.populationModeModel, points);
     
-    % create 25D population ... 
-    pop25 = CosinePopulation(ones(25, 1), sg, 'test25');  
-    pop25.addOrigin('x', @(x) x);
-    initPopulationMode(pop25); 
-    testSimulation(pop25, showPlots)
+    modelBias = zeros(size(simBias));
+    for i = 1:n
+        modelBias(:,i) = getBias(pop.populationModeModel, points(:,i));
+    end
+    
+    figure
+    no = length(pop.populationModeModel.originIndices);
+    no = min(no, 4); % larger plots would be unwieldy
+    for i = 1:no
+        subplot(no,3,(i-1)*3+1), plot3(points(1,:), points(2,:), simBias(i,:), 'x')
+        subplot(no,3,(i-1)*3+2), plot3(points(1,:), points(2,:), modelBias(i,:), 'x')
+        subplot(no,3,(i-1)*3+3), plot3(points(1,:), points(2,:), modelBias(i,:)-simBias(i,:), '.'), title('error')
+    end
 end
 
 function testNoiseGeneration(pop)
@@ -80,7 +105,8 @@ function testSimulation(pop, showPlots)
     end
     
     ind = length(time)+(-20:0);
-    assert(abs(mean(defaultModeX(ind)) - mean(populationModeX(ind))) < .1) 
+    error = mean(defaultModeX(1,ind)) - mean(populationModeX(1,ind));
+    assert(abs(error) < .1, sprintf('simulation - model difference too large over last 20 samples: %f', error)) 
 end
 
 % This is mostly a duplicate of testSimulation, but with an additional 

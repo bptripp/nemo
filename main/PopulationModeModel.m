@@ -65,23 +65,31 @@ classdef PopulationModeModel < handle
                 pmm.X = makeVector(a*p.radii(1), np);
                 pmm.biasValues = getBiasSamples(pmm, pmm.X);
             elseif length(p.radii) == 2
-                % TODO: check reshape order
-                np = 51;
-                x = makeVector(a*p.radii(1), np);
-                y = makeVector(a*p.radii(2), np);
-                [pmm.X, pmm.Y] = meshgrid(x, y); 
-                bv = getBiasSamples(pmm, [reshape(pmm.X, 1, np^2); reshape(pmm.Y, 1, np^2)]);
+                np = 101;
+                pmm.X = makeVector(a*p.radii(1), np);
+                pmm.Y = makeVector(a*p.radii(2), np);                
+                [x, y] = meshgrid(pmm.X, pmm.Y); 
+                
+                % note: the transpose below makes the biasValues line up
+                % with pmm.X and pmm.Y
+                bv = getBiasSamples(pmm, [reshape(x', 1, np^2); reshape(y', 1, np^2)]);
                 pmm.biasValues = reshape(bv, [length(originIndices) np np]);
             elseif length(p.radii) == 3
-                np = 51;
-                x = makeVector(a*p.radii(1), np);
-                y = makeVector(a*p.radii(2), np);
-                z = makeVector(a*p.radii(3), np);
-                [pmm.X, pmm.Y, pmm.Z] = meshgrid(x, y, z);
-                bv = getBiasSamples(pmm, [reshape(pmm.X, 1, np^3); reshape(pmm.Y, 1, np^3); reshape(pmm.Z, 1, np^3)]);
+                np = 41;
+                pmm.X = makeVector(a*p.radii(1), np);
+                pmm.Y = makeVector(a*p.radii(2), np);
+                pmm.Z = makeVector(a*p.radii(3), np);
+
+                [x, y, z] = meshgrid(pmm.X, pmm.Y, pmm.Z);
+                x = permute(x, [2, 1, 3]); 
+                y = permute(y, [2, 1, 3]);
+                z = permute(z, [2, 1, 3]);
+                
+                bv = getBiasSamples(pmm, [reshape(x, 1, np^3); reshape(y, 1, np^3); reshape(z, 1, np^3)]);
                 pmm.biasValues = reshape(bv, [length(originIndices) np np np]);
             else % for higher dimensions we sample along one dimension ...
-                pmm.R = makeVector(p.radii(1), 201);
+                radius = a*p.radii(1); %TODO: handle unequal radii
+                pmm.R = 0:(radius/(201-1)):radius;
                 pmm.biasValues = getBiasSamples(pmm, [pmm.R; zeros(length(p.radii)-1, length(pmm.R))]);
             end
         end
@@ -97,7 +105,6 @@ classdef PopulationModeModel < handle
             
             n = 10;             
             points = Population.genRandomPoints(n, pmm.pop.radii, 0);
-%             points = zeros(1,n);
             freq = 2*pi*(0:1/T:(1/dt/2-1/T));
             
             rho = zeros(nd, nd); %correlations
@@ -300,7 +307,7 @@ end
 
 % for bias lookup tables
 function result = getIndex(X, x)
-    result = max(1, min(length(X), round((x - X(1)) / (X(2)-X(1)))));
+    result = max(1, min(length(X), 1+round((x - X(1)) / (X(2)-X(1)))));
 end
 
 % Creates a vector for use in meshgrid; radius is extent from zero in each
@@ -377,7 +384,6 @@ end
 % mag: Fourier magnitudes at above frequencies
 % result: mean-squared error between mag and the transfer function magnitude 
 function result = tfError(freq, mag, kss, ks, k, w0, Q)
-%     [kss ks k w0 Q] 
     sys = tf([kss ks*w0/Q k*w0^2], [1 w0/Q w0^2]);
     [sysMag, sysPhase] = bode(sys, freq);
     result = mean( (mag' - squeeze(sysMag)).^2 );

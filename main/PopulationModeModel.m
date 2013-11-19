@@ -36,6 +36,7 @@ classdef PopulationModeModel < handle
         nfB = []; %input matrix
         nfC = []; %output matrix
         nfD = []; %passthrough matrix
+        sds = [];
         
         noiseTime = [];
         noiseSamples = [];
@@ -100,55 +101,105 @@ classdef PopulationModeModel < handle
             nd = length(originIndices); %total # dimensions across origins
             
             dt = pmm.dt;
-            T = 1;
+            T = 2;
             time = dt:dt:T;
             
-            n = 10;             
+            n = 3;  
             points = Population.genRandomPoints(n, pmm.pop.radii, 0);
             freq = 2*pi*(0:1/T:(1/dt/2-1/T));
             
             rho = zeros(nd, nd); %correlations
-            mags = zeros(nd, length(freq)); % fourier magnitudes 
-            scaleForAverage = 1/n;
-            for i = 1:n
+%             mags = zeros(nd, length(freq)); % fourier magnitudes 
+%             scaleForAverage = 1/n;
+%             for i = 1:n
+%                 fprintf('.')
+%                 noiseMatrix = getNoiseSamples(pmm, points(:,i), dt, T);
+%                 
+%                 rho = rho + scaleForAverage*corr(noiseMatrix');
+%                 
+%                 for j = 1:nd
+%                     f = fft(noiseMatrix(j,:)) / length(time) * 2 / pi^.5;
+%                     mags(j,:) = mags(j,:) + scaleForAverage*abs(f(1:length(freq)));  
+%                 end
+%             end    
+
+            mags = zeros(nd, length(freq), 2); % fourier magnitudes 
+            points = repmat(zeros(size(pmm.pop.radii)), 1, 2);
+            points(1,2) = 2*pmm.pop.radii(1); % a point at 2x radius
+            pmm.sds = zeros(nd, 2); %standard deviations of noise
+            for i = 1:2
                 fprintf('.')
                 noiseMatrix = getNoiseSamples(pmm, points(:,i), dt, T);
+                pmm.sds(:,i) = std(noiseMatrix, [], 2);
                 
-                rho = rho + scaleForAverage*corr(noiseMatrix');
+                if i == 1
+                    rho = corr(noiseMatrix');
+                end
                 
                 for j = 1:nd
                     f = fft(noiseMatrix(j,:)) / length(time) * 2 / pi^.5;
-                    mags(j,:) = mags(j,:) + scaleForAverage*abs(f(1:length(freq)));  
+                    mags(j,:,i) = abs(f(1:length(freq)));  
                 end
             end    
             pmm.noiseCorr = rho;
             fprintf('\n')
             
-            % here we set up a linear system to filter random noise in order 
+            % Here we set up a linear system to filter random noise in order 
             % to produce noise with a realistic spectrum (note we will 
-            % expect random noise with unit variance at each frequency) 
+            % expect random noise with unit variance at each frequency). 
+            % There are two filters that process the same random input in 
+            % parallel to account for different power spectra at different
+            % x. The final output is interpolated from the outputs of the
+            % two filters. 
             pmm.nfU = zeros(nd, 1);
-            pmm.nfX = zeros(2*nd, 1);
-            pmm.nfA = zeros(2*nd, 2*nd);
-            pmm.nfB = zeros(2*nd, nd);
-            pmm.nfC = zeros(nd, 2*nd);
-            pmm.nfD = zeros(nd, nd);
+            pmm.nfX = cell(1,2);
+            pmm.nfX{1} = zeros(2*nd, 1);
+            pmm.nfA{1} = zeros(2*nd, 2*nd);
+            pmm.nfB{1} = zeros(2*nd, nd);
+            pmm.nfC{1} = zeros(nd, 2*nd);
+            pmm.nfD{1} = zeros(nd, nd);
+            pmm.nfX{2} = zeros(2*nd, 1);
+            pmm.nfA{2} = zeros(2*nd, 2*nd);
+            pmm.nfB{2} = zeros(2*nd, nd);
+            pmm.nfC{2} = zeros(nd, 2*nd);
+            pmm.nfD{2} = zeros(nd, nd);
             
             % find filter parameters for each output
             for i = 1:nd
-                sys = fitTF(freq, mags(i,:));
-                sysd = c2d(sys, dt);
+%                 sys = PopulationModeModel.fitTF(freq, squeeze(mags(i,:,1)));
+                sys = PopulationModeModel.fitTF2(freq, squeeze(mags(i,:,1)));
+                setNoiseFilter(pmm, 1, sys, i, dt);
+%                 sys = PopulationModeModel.fitTF(freq, squeeze(mags(i,:,2)));
+                sys = PopulationModeModel.fitTF2(freq, squeeze(mags(i,:,2)));
+                setNoiseFilter(pmm, 2, sys, i, dt);
                 
-                [A, B, C, D] = tf2ss(sysd.num{:}, sysd.den{:}); 
-                ii = 2*(i-1)+[1 2];
-                pmm.nfA(ii, ii) = A;
-                pmm.nfB(ii, i) = B;
-                pmm.nfC(i, ii) = C;
-                pmm.nfD(i, i) = D;
+%                 sysd = c2d(sys, dt);
+%                 
+%                 [A, B, C, D] = tf2ss(sysd.num{:}, sysd.den{:}); 
+%                 ii = 2*(i-1)+[1 2];
+%                 pmm.nfA(ii, ii) = A;
+%                 pmm.nfB(ii, i) = B;
+%                 pmm.nfC(i, ii) = C;
+%                 pmm.nfD(i, i) = D;
             end   
             
             %note: temporal filtering shouldn't affect correlations
             % except transiently when starting from zero
+        end
+        
+        % c: set to 1 for central filter or 2 for peripheral filter
+        % sys: analog transfer function of filter
+        % i: index of output dimension across all origins
+        function setNoiseFilter(pmm, cp, sys, i, dt)
+            assert(cp == 1 || cp == 2)
+            sysd = c2d(sys, dt);
+
+            [A, B, C, D] = tf2ss(sysd.num{:}, sysd.den{:}); 
+            ii = 2*(i-1)+[1 2];
+            pmm.nfA{cp}(ii, ii) = A;
+            pmm.nfB{cp}(ii, i) = B;
+            pmm.nfC{cp}(i, ii) = C;
+            pmm.nfD{cp}(i, i) = D;
         end
         
         % indices: list of indices of origins to which each value returned
@@ -199,30 +250,45 @@ classdef PopulationModeModel < handle
                 pmm.noiseSamples = generateNoise(pmm, nSteps);
                 noiseInd = 1;
             end 
-            noise = pmm.noiseSamples(:,noiseInd);
+            noise = zeros(size(pmm.noiseSamples, 1), 2);
+            noise(:,:) = pmm.noiseSamples(:,noiseInd,:);
         end
         
         % nSteps: number of noise samples to generate (each sample is a
         %   vector where each element corresponds to a certain dimension of
         %   a certain Origin)
-        % noise: correlated, filtered noise samples (total output dims x nSteps)
+        % noise: correlated, filtered noise samples (total output dims x nSteps x 2)
+        %   (Note: both central (near 0) and peripheral (radius x 2) noise
+        %   is generated for later interpolation depending on ||x||.)
         function noise = generateNoise(pmm, nSteps)
             scale = (1/pmm.dt)^.5; % to meet our linear system's expectation of input with unit variance at each frequency
             unfiltered = [pmm.nfU scale * PoissonSpikeGenerator.randncov(nSteps, pmm.noiseCorr)];
                         
-            x = pmm.nfX;
-            A = pmm.nfA; B = pmm.nfB; C = pmm.nfC; D = pmm.nfD;
+            noise = zeros(size(unfiltered,1), nSteps, 2);
             
-            %TODO: this filtering is about 10% of error model runtime and
-            %could be almost eliminated by using Matlab's filter function
-            noise = zeros(size(unfiltered,1), nSteps);
-            for i = 1:nSteps
-                x = A*x + B*unfiltered(:,i);
-                noise(:,i) = C*x + D*unfiltered(:,i+1);
+            for cp = 1:2 %central and peripheral filters
+                x = pmm.nfX{cp};
+                A = pmm.nfA{cp}; B = pmm.nfB{cp}; C = pmm.nfC{cp}; D = pmm.nfD{cp};
+
+                %TODO: this filtering is about 10% of error model runtime and
+                %could be almost eliminated by using Matlab's filter function
+                for i = 1:nSteps
+                    x = A*x + B*unfiltered(:,i);
+                    noise(:,i,cp) = C*x + D*unfiltered(:,i+1);
+                end
+                pmm.nfX{cp} = x;
+
+                %make sure noise SD is correct ... 
+                gsds = std(noise(:,:,cp), [], 2);
+                gain = pmm.sds(:,cp) ./ gsds;
+                for i = 1:size(noise, 1)
+                    noise(i,:,cp) = noise(i,:,cp) * gain(i);
+                end
             end
             
+            
+            
             pmm.nfU = unfiltered(:,end);
-            pmm.nfX = x;
         end
         
         % Obtains samples of bias (distortion) error for DecodedOrigins 
@@ -301,6 +367,168 @@ classdef PopulationModeModel < handle
         function model = getModel(pop)
             model = PopulationModeModel(pop);
         end
+        
+        % TODO: Testing this (should be better) 
+        function sys = fitTF2(freq, mags)
+            % only fit to lower frequencies ...
+            freq = freq(1:(length(freq)/2));
+            mags = mags(1:length(freq));
+            
+            cutoff = 2*pi*(5:25:300);
+            Q = .05:.2:3;
+            [magLP, magBP, magHP] = PopulationModeModel.getFilterMagnitudes(freq, cutoff, Q);
+            err = PopulationModeModel.getError(freq, mags, cutoff, Q, magLP, magBP, magHP);
+            [i, j] = find(err == min(err(:)));
+            
+            mHP = squeeze(magHP(i,j,:))';
+            mBP = squeeze(magBP(i,j,:))';
+            mLP = squeeze(magLP(i,j,:))';
+            meanMHP = mean(mHP);
+            meanMBP = mean(mBP);
+            meanMLP = mean(mLP);
+            ALL = [mHP/meanMHP; mBP/meanMBP; mLP/meanMLP]; % for numerical OKness in inverse
+            
+%             ALL = [mHP; mBP; mLP];
+            foo = (ALL*ALL');
+            bar = foo + mean(eig(foo)) * .05 * eye(3);
+            NUM = bar\(ALL*mags');
+            DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
+            sys = tf(NUM' ./ [meanMHP meanMBP meanMLP], DEN);
+            
+%             [sysMag, sysPhase] = bode(sys, freq); 
+%             figure(1)
+%             subplot(2,2,1), plot(freq, mLP)
+%             subplot(2,2,2), plot(freq, mBP)
+%             subplot(2,2,3), plot(freq, mHP)
+%             subplot(2,2,4), plot(freq, squeeze(sysMag), 'r', freq, mags, 'k')
+% %             subplot(2,2,4), plot(freq, approx, 'r', freq, mags, 'k')
+%             pause
+            
+%             figure(1); cla; [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b'), pause
+            
+        end
+        
+        % freq: list of frequencies 
+        % mags: fourier magnitudes at given frequencies
+        % sys: continuous-time transfer function that approximates mags
+        %   given white-noise input
+        function sys = fitTF(freq, mags)
+            % there is typically a noisy resonant peak ... 
+            smoothed = conv(mags, ones(1,10)/10, 'same');            
+            maxFreq = .75*freq(find(smoothed == max(smoothed), 1, 'first'));
+            maxFreq = max(2*pi*50, min(2*pi*300, maxFreq)); 
+
+            % guess at the scales of transfer function parameters?[a0 a1 a2 w0 1/Q] for H(s) = (a2*s^2 + a1*s + a0) / (s^2 + w0/Q*s + w0^2) 
+            a0 = mean(mags(2:5));
+            a2 = mean(mags(end-3:end));
+            a1 = (a0 + a2) / 2;
+            w0 = maxFreq;
+
+            options = optimset('TolX', 1e-10, 'TolFun', 1e-10, 'Algorithm','levenberg-marquardt', 'display', 'off');
+
+            % solver often quits right away if we start with a decent estimate, so 
+            % we check this and try a different starting point as needed
+            OK = 0;
+            tries = 0;
+            maxtries = 50;
+            allp = [];
+            allrn = [];
+            alls = [];
+            while ~OK && tries < maxtries
+                Q = 2 - 1.5*mod(tries,2); % try 2 first, then alternate .5 (overdamped) and 2 (underdamped) 
+                s = [a2 a1 a0 w0 Q]; 
+                
+                % note that errfun params x(i) are expected to be close to 1 
+                errfun = @(x) tfError(freq, mags, x(1)*s(1), x(2)*s(2), x(3)*s(3), x(4)*s(4), x(5)*s(5));
+            
+                p = max(0.1, 1 + .25*randn(1,5)); %initial conditions of parameters
+                [p, RESNORM, RESIDUAL, EXITFLAG, OUTPUT] = lsqnonlin(errfun, p, [], [], options);
+                if ~ismember(EXITFLAG, [2, 3, 4]) && p(4) > 1e-3 && p(5) > 1e-3 
+                    OK = 1;
+                else 
+                    tries = tries + 1;
+%                     p
+%                     RESNORM
+                    allp = [allp; p];
+                    allrn = [allrn; RESNORM];
+                    alls = [alls; s];
+                end
+            end
+            
+            if ~OK
+                bestInd = find(allrn == min(allrn), 1, 'first');
+                p = allp(bestInd, :);
+                s = alls(bestInd, :);
+            end
+
+            p = p .* s;
+            sys = tf([p(1) p(2)*p(4)/p(5) p(3)*p(4)^2], [1 p(4)/p(5) p(4)^2]);
+
+%             figure(1); cla; [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b'), pause
+        end
+        
+        % cutoff: in rad/s (~25Hz to 400Hz)
+        % Q: ~.5 to 3
+        function err = getError(freq, mags, cutoff, Q, magLP, magBP, magHP)
+            err = zeros(length(cutoff), length(Q));
+%             tic
+            for i = 1:length(cutoff)                
+                for j = 1:length(Q)
+%                     DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
+%                     LP = tf([0 0 1], DEN);
+%                     BP = tf([0 1 0], DEN);
+%                     HP = tf([1 0 0], DEN);
+%                     [magLP, phase] = bode(LP, freq);
+%                     [magBP, phase] = bode(BP, freq);
+%                     [magHP, phase] = bode(HP, freq);
+                    mHP = squeeze(magHP(i,j,:))';
+                    mBP = squeeze(magBP(i,j,:))';
+                    mLP = squeeze(magLP(i,j,:))';
+                    meanMHP = mean(mHP);
+                    meanMBP = mean(mBP);
+                    meanMLP = mean(mLP);
+                    ALL = [mHP/meanMHP; mBP/meanMBP; mLP/meanMLP];
+                    foo = (ALL*ALL');
+                    bar = foo + mean(eig(foo)) * .05 * eye(3);
+                    NUM = bar\(ALL*mags');                    
+%                     NUM = (ALL*ALL')\(ALL*mags');
+                    approx = NUM' * ALL;
+                    err(i,j) = mean( (mags-approx).^2 );
+                    
+%                     figure(1)
+%                     subplot(2,2,1), plot(freq, mLP)
+%                     subplot(2,2,2), plot(freq, mBP)
+%                     subplot(2,2,3), plot(freq, mHP)
+%                     subplot(2,2,4), plot(freq, approx, 'r', freq, mags, 'k')
+%                     pause
+                end
+            end
+%             toc
+            
+%             mesh(Q, cutoff, err), set(gca, 'ZLim', [0 max(err(:))]), pause
+        end
+        
+%         function NUM = getNumerator(mags, mHP, mBP, mLP)
+%         end
+        
+        function [magLP, magBP, magHP] = getFilterMagnitudes(freq, cutoff, Q)
+            magLP = zeros(length(cutoff), length(Q), length(freq));
+            magBP = zeros(length(cutoff), length(Q), length(freq));
+            magHP = zeros(length(cutoff), length(Q), length(freq));
+            
+            for i = 1:length(cutoff)
+                for j = 1:length(Q)
+                    DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
+                    LP = tf([0 0 1], DEN);
+                    BP = tf([0 1 0], DEN);
+                    HP = tf([1 0 0], DEN);
+                    [magLP(i,j,:), phase] = bode(LP, freq);
+                    [magBP(i,j,:), phase] = bode(BP, freq);
+                    [magHP(i,j,:), phase] = bode(HP, freq);
+                end
+            end
+        end
+        
     end
     
 end
@@ -332,45 +560,6 @@ function result = makeOriginIndices(pop)
         result(c+(1:pop.origins{i}.dim)) = i;
         c = c + pop.origins{i}.dim;
     end
-end
-
-% freq: list of frequencies 
-% mags: fourier magnitudes at given frequencies
-% sys: continuous-time transfer function that approximates mags
-%   given white-noise input
-function sys = fitTF(freq, mags)
-    % there is typically a noisy resonant peak ... 
-    smoothed = conv(mags, ones(1,10)/10, 'same');            
-    maxFreq = .75*freq(find(smoothed == max(smoothed), 1, 'first'));
-    maxFreq = max(2*pi*50, min(2*pi*300, maxFreq)); 
-
-    % guess at the scales of transfer function parameters?[a0 a1 a2 w0 1/Q] for H(s) = (a2*s^2 + a1*s + a0) / (s^2 + w0/Q*s + w0^2) 
-    a0 = mean(mags(2:5));
-    a2 = mean(mags(end-3:end));
-    a1 = (a0 + a2) / 2;
-    w0 = maxFreq;
-    Q = 2;
-    s = [a2 a1 a0 w0 Q]; 
-
-    % note that errfun params x(i) are expected to be close to 1 
-    errfun = @(x) tfError(freq, mags, x(1)*s(1), x(2)*s(2), x(3)*s(3), x(4)*s(4), x(5)*s(5));
-    options = optimset('TolX', 1e-10, 'TolFun', 1e-10, 'Algorithm','levenberg-marquardt');
-    
-    % solver often quits right away if we start with a decent estimate, so 
-    % we check this and try a different starting point as needed
-    OK = 0;
-    while ~OK
-        p = max(0.1, 1 + .25*randn(1,5)); %initial conditions of parameters
-        [p, RESNORM, RESIDUAL, EXITFLAG, OUTPUT] = lsqnonlin(errfun, p, [], [], options);
-        if ~ismember(EXITFLAG, [2, 3, 4]) && p(4) > 1e-3 && p(5) > 1e-3
-            OK = 1;
-        end
-    end
-    
-    p = p .* s;
-    sys = tf([p(1) p(2)*p(4)/p(5) p(3)*p(4)^2], [1 p(4)/p(5) p(4)^2]);
-
-    [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b') 
 end
 
 

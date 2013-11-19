@@ -94,6 +94,13 @@ classdef Population < Node
                 oi = p.populationModeModel.originIndices;
                 bias = getBias(p.populationModeModel, x);
                 noise = getNoise(p.populationModeModel, stop);
+                r = norm(x./p.radii);
+                if r < 2 %interpolate
+                    noise = (1-r/2)*noise(:,1) + (r/2)*noise(:,2);
+                else 
+                    noise = noise(:,2);
+                end
+                
 %                 [bias, noise] = getError(p.populationModeModel, x, start, stop);
 
                 for i = 1:length(p.origins)
@@ -119,7 +126,7 @@ classdef Population < Node
         
         function reset(p)
             reset@Node(p);
-            reset(p.spikeGenerator);
+            reset(p.spikeGenerator, [], 1);
         end
 
         % domain: limits of represented area in each dimension

@@ -24,7 +24,7 @@ function h = plotProbe(probe, varargin)
         fh = figure(varargin{2});
     end
     
-    if length(varargin) >= 3 && varargin{3}
+    if length(varargin) >= 3 && ~isempty(varargin{3}) && varargin{3}
         clf(fh);
     end
     
@@ -54,7 +54,8 @@ function h = plotProbe(probe, varargin)
     else % plot vector
         h = line(time, history);
         set(h, 'Color', spec)
-        xlabel('time (s)')
-        ylabel(probe.stateName)
+        xlabel('Time (s)', 'FontSize', 18)
+        ylabel(probe.stateName, 'FontSize', 18)
+        set(gca, 'FontSize', 18)
     end
 end

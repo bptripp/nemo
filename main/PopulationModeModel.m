@@ -377,23 +377,26 @@ classdef PopulationModeModel < handle
             cutoff = 2*pi*(5:25:300);
             Q = .05:.2:3;
             [magLP, magBP, magHP] = PopulationModeModel.getFilterMagnitudes(freq, cutoff, Q);
-            err = PopulationModeModel.getError(freq, mags, cutoff, Q, magLP, magBP, magHP);
-            [i, j] = find(err == min(err(:)));
-            
-            mHP = squeeze(magHP(i,j,:))';
-            mBP = squeeze(magBP(i,j,:))';
-            mLP = squeeze(magLP(i,j,:))';
-            meanMHP = mean(mHP);
-            meanMBP = mean(mBP);
-            meanMLP = mean(mLP);
-            ALL = [mHP/meanMHP; mBP/meanMBP; mLP/meanMLP]; % for numerical OKness in inverse
-            
-%             ALL = [mHP; mBP; mLP];
-            foo = (ALL*ALL');
-            bar = foo + mean(eig(foo)) * .05 * eye(3);
-            NUM = bar\(ALL*mags');
-            DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
-            sys = tf(NUM' ./ [meanMHP meanMBP meanMLP], DEN);
+            [err, NUM, DEN] = PopulationModeModel.getError(freq, mags, cutoff, Q, magLP, magBP, magHP);
+            sys = tf(NUM, DEN);
+
+%             [i, j] = find(err == min(err(:)));
+%             
+%             mHP = squeeze(magHP(i,j,:))';
+%             mBP = squeeze(magBP(i,j,:))';
+%             mLP = squeeze(magLP(i,j,:))';
+%             meanMHP = mean(mHP);
+%             meanMBP = mean(mBP);
+%             meanMLP = mean(mLP);
+%             ALL = [mHP/meanMHP; mBP/meanMBP; mLP/meanMLP]; % for numerical OKness in inverse
+%             
+% %             ALL = [mHP; mBP; mLP];
+%             foo = (ALL*ALL');
+%             bar = foo + mean(eig(foo)) * .05 * eye(3);
+%             NUM = bar\(ALL*mags');
+%             DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
+%             sys = tf(NUM' ./ [meanMHP meanMBP meanMLP], DEN);
+
             
 %             [sysMag, sysPhase] = bode(sys, freq); 
 %             figure(1)
@@ -404,9 +407,9 @@ classdef PopulationModeModel < handle
 % %             subplot(2,2,4), plot(freq, approx, 'r', freq, mags, 'k')
 %             pause
             
-%             figure(1); cla; [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b'), pause
-            
+%             figure(1); cla; [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b'), pause            
         end
+        
         
         % freq: list of frequencies 
         % mags: fourier magnitudes at given frequencies
@@ -469,18 +472,14 @@ classdef PopulationModeModel < handle
         
         % cutoff: in rad/s (~25Hz to 400Hz)
         % Q: ~.5 to 3
-        function err = getError(freq, mags, cutoff, Q, magLP, magBP, magHP)
+        function [err, NUM, DEN] = getError(freq, mags, cutoff, Q, magLP, magBP, magHP)            
+            
             err = zeros(length(cutoff), length(Q));
+            numerators = zeros(length(cutoff), length(Q), 3);
+            denominators = zeros(length(cutoff), length(Q), 3);
 %             tic
             for i = 1:length(cutoff)                
                 for j = 1:length(Q)
-%                     DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
-%                     LP = tf([0 0 1], DEN);
-%                     BP = tf([0 1 0], DEN);
-%                     HP = tf([1 0 0], DEN);
-%                     [magLP, phase] = bode(LP, freq);
-%                     [magBP, phase] = bode(BP, freq);
-%                     [magHP, phase] = bode(HP, freq);
                     mHP = squeeze(magHP(i,j,:))';
                     mBP = squeeze(magBP(i,j,:))';
                     mLP = squeeze(magLP(i,j,:))';
@@ -488,21 +487,28 @@ classdef PopulationModeModel < handle
                     meanMBP = mean(mBP);
                     meanMLP = mean(mLP);
                     ALL = [mHP/meanMHP; mBP/meanMBP; mLP/meanMLP];
+
                     foo = (ALL*ALL');
-                    bar = foo + mean(eig(foo)) * .05 * eye(3);
-                    NUM = bar\(ALL*mags');                    
-%                     NUM = (ALL*ALL')\(ALL*mags');
-                    approx = NUM' * ALL;
+                    bar = foo + mean(eig(foo)) * .05 * eye(3); % regularization
+                    NUM = bar\(ALL*mags');    
+                    approx = NUM' * ALL;                    
                     err(i,j) = mean( (mags-approx).^2 );
+                    NUM = NUM ./ [meanMHP; meanMBP; meanMLP];
                     
+                    numerators(i,j,:) = NUM;
+                    denominators(i,j,:) = [1 cutoff(i)/Q(j) cutoff(i)^2];
+
 %                     figure(1)
-%                     subplot(2,2,1), plot(freq, mLP)
-%                     subplot(2,2,2), plot(freq, mBP)
-%                     subplot(2,2,3), plot(freq, mHP)
-%                     subplot(2,2,4), plot(freq, approx, 'r', freq, mags, 'k')
+%                     subplot(2,1,1), semilogx(freq, ALL)
+%                     subplot(2,1,2), semilogx(freq, approx, 'r', freq, mags, 'k')
 %                     pause
                 end
             end
+            
+            [i, j] = find(err == min(err(:)), 1, 'first')
+            NUM = squeeze(numerators(i,j,:));
+            DEN = squeeze(denominators(i,j,:));
+            
 %             toc
             
 %             mesh(Q, cutoff, err), set(gca, 'ZLim', [0 max(err(:))]), pause

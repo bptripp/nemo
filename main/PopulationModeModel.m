@@ -378,7 +378,7 @@ classdef PopulationModeModel < handle
             Q = .05:.2:3;
             [magLP, magBP, magHP] = PopulationModeModel.getFilterMagnitudes(freq, cutoff, Q);
             [err, NUM, DEN] = PopulationModeModel.getError(freq, mags, cutoff, Q, magLP, magBP, magHP);
-            sys = tf(NUM, DEN);
+            sys = tf(NUM', DEN');
 
 %             [i, j] = find(err == min(err(:)));
 %             

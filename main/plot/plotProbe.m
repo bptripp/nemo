@@ -20,6 +20,7 @@ function h = plotProbe(probe, varargin)
     
     if length(varargin) < 2 || isempty(varargin{2})
         fh = figure;
+    elseif varargin{2} < 0 %do nothing
     else 
         fh = figure(varargin{2});
     end

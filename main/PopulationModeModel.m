@@ -416,58 +416,18 @@ classdef PopulationModeModel < handle
         % sys: continuous-time transfer function that approximates mags
         %   given white-noise input
         function sys = fitTF(freq, mags)
-            % there is typically a noisy resonant peak ... 
-            smoothed = conv(mags, ones(1,10)/10, 'same');            
-            maxFreq = .75*freq(find(smoothed == max(smoothed), 1, 'first'));
-            maxFreq = max(2*pi*50, min(2*pi*300, maxFreq)); 
-
-            % guess at the scales of transfer function parameters?[a0 a1 a2 w0 1/Q] for H(s) = (a2*s^2 + a1*s + a0) / (s^2 + w0/Q*s + w0^2) 
-            a0 = mean(mags(2:5));
-            a2 = mean(mags(end-3:end));
-            a1 = (a0 + a2) / 2;
-            w0 = maxFreq;
-
-            options = optimset('TolX', 1e-10, 'TolFun', 1e-10, 'Algorithm','levenberg-marquardt', 'display', 'off');
-
-            % solver often quits right away if we start with a decent estimate, so 
-            % we check this and try a different starting point as needed
-            OK = 0;
-            tries = 0;
-            maxtries = 50;
-            allp = [];
-            allrn = [];
-            alls = [];
-            while ~OK && tries < maxtries
-                Q = 2 - 1.5*mod(tries,2); % try 2 first, then alternate .5 (overdamped) and 2 (underdamped) 
-                s = [a2 a1 a0 w0 Q]; 
-                
-                % note that errfun params x(i) are expected to be close to 1 
-                errfun = @(x) tfError(freq, mags, x(1)*s(1), x(2)*s(2), x(3)*s(3), x(4)*s(4), x(5)*s(5));
+            multiStartIterations = 20;
             
-                p = max(0.1, 1 + .25*randn(1,5)); %initial conditions of parameters
-                [p, RESNORM, RESIDUAL, EXITFLAG, OUTPUT] = lsqnonlin(errfun, p, [], [], options);
-                if ~ismember(EXITFLAG, [2, 3, 4]) && p(4) > 1e-3 && p(5) > 1e-3 
-                    OK = 1;
-                else 
-                    tries = tries + 1;
-%                     p
-%                     RESNORM
-                    allp = [allp; p];
-                    allrn = [allrn; RESNORM];
-                    alls = [alls; s];
-                end
-            end
+            x0 = [1 0 0 2*pi*10 1]; %initial params: [kss ks k w0 Q]
+            lb = [-10*max(mags)*ones(1,3) 2*pi*.001 .001];
+            ub = [10*max(mags)*ones(1,3) 2*pi*500 4];
+
+            objective = @(par, frequencies) tfObjective(frequencies, par(1), par(2), par(3), par(4), par(5));
             
-            if ~OK
-                bestInd = find(allrn == min(allrn), 1, 'first');
-                p = allp(bestInd, :);
-                s = alls(bestInd, :);
-            end
-
-            p = p .* s;
-            sys = tf([p(1) p(2)*p(4)/p(5) p(3)*p(4)^2], [1 p(4)/p(5) p(4)^2]);
-
-%             figure(1); cla; [sysMag, sysPhase] = bode(sys, freq); plot(freq, mags, 'k'), hold on, plot(freq, squeeze(sysMag), 'b'), pause
+            problem = createOptimProblem('lsqcurvefit', 'x0', x0, 'objective', objective, 'lb', lb, 'ub', ub, 'xdata', freq, 'ydata', mags);
+            ms = MultiStart('PlotFcns',@gsplotbestf);
+            [x, error] = run(ms, problem, multiStartIterations);  
+            sys = tf([x(1) x(2)*x(4)/x(5) x(3)*x(4)^2], [1 x(4)/x(5) x(4)^2]);
         end
         
         % cutoff: in rad/s (~25Hz to 400Hz)
@@ -527,10 +487,13 @@ classdef PopulationModeModel < handle
                     DEN = [1 cutoff(i)/Q(j) cutoff(i)^2];
                     LP = tf([0 0 1], DEN);
                     BP = tf([0 1 0], DEN);
-                    HP = tf([1 0 0], DEN);
+                    HP = tf([1 0 0], DEN);                    
                     [magLP(i,j,:), phase] = bode(LP, freq);
                     [magBP(i,j,:), phase] = bode(BP, freq);
                     [magHP(i,j,:), phase] = bode(HP, freq);
+                    if max(isinf(magLP(i,j,:)))
+                        sprintf('inf')
+                    end
                 end
             end
         end
@@ -586,4 +549,17 @@ function result = tfError(freq, mag, kss, ks, k, w0, Q)
     if nargout == 0
         plot(freq, mag, 'k', freq, squeeze(sysMag), 'r')
     end
+end
+
+% Calculates 2nd-order transfer function magnitude at given frequencies.
+% 
+% The transfer function is: 
+%   H(s) = (kss*s^2 + ks*(w0/Q)*s + k) / (s^2 + (w0/Q)*s + w0^2)
+% 
+% freq: frequencies (radians/s)
+% result: transfer function magnitude at freq
+function result = tfObjective(freq, kss, ks, k, w0, Q)
+    sys = tf([kss ks*w0/Q k*w0^2], [1 w0/Q w0^2]);
+    [result, ~] = bode(sys, freq);
+    result = squeeze(result)';
 end

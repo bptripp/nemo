@@ -89,7 +89,7 @@ classdef SpikeGenerator < Probeable
                 sg.lastDriveState = drive;
                 sg.lastSpikeState = logical(output);
             else 
-                output = getRates(sg, drive, startTime, endTime);
+                output = getRates(sg, drive, startTime, startTime); %run at an instant, not for an interval
                 sg.lastDriveState = drive;
                 sg.lastSpikeState = false(size(output));
             end

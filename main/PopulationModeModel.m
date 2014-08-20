@@ -425,7 +425,8 @@ classdef PopulationModeModel < handle
             objective = @(par, frequencies) tfObjective(frequencies, par(1), par(2), par(3), par(4), par(5));
             
             problem = createOptimProblem('lsqcurvefit', 'x0', x0, 'objective', objective, 'lb', lb, 'ub', ub, 'xdata', freq, 'ydata', mags);
-            ms = MultiStart('PlotFcns',@gsplotbestf);
+            ms = MultiStart();
+%             ms = MultiStart('PlotFcns',@gsplotbestf);
             [x, error] = run(ms, problem, multiStartIterations);  
             sys = tf([x(1) x(2)*x(4)/x(5) x(3)*x(4)^2], [1 x(4)/x(5) x(4)^2]);
         end

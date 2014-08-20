@@ -92,7 +92,7 @@ classdef LIFSpikeGenerator < SpikeGenerator
                 sg.V = rand(size(sg.V));
             end
             sg.Gad = repmat(sg.Gad0, instances, 1);
-            sg.lastSpike = -sg.tauRef*ones(size(sg.V));
+            sg.lastSpike = -10*ones(size(sg.V));
         end
         
         % See SpikeGenerator.getRates(...)

@@ -88,6 +88,9 @@ classdef CosinePopulation < Population
         % intercepts: For all neurons (1 by reps*n) 
         % maxRates: For all neurons (1 by reps*n)
         % originFunctions: a struct with names and functions
+        % 
+        % Example: 
+        % dim = 50; test = CosinePopulation.makeAggregatePopulation('product', dim, 100, 1, .002, .02, -1+2*rand(1,100*dim), 50+50*rand(1,100*dim), struct('x', @(x) x));
         function result = makeAggregatePopulation(name, reps, n, radii, tauRef, tauRC, intercepts, maxRates, originFunctions)
             assert(size(intercepts, 1) == 1, 'Intercepts should be 1 by reps*n');
             assert(size(intercepts, 2) == reps*n, 'Intercepts should be 1 by reps*n');

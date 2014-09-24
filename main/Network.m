@@ -41,7 +41,7 @@ classdef Network < Node
                 end
                 
                 t = t + n.step;
-                sprintf('t = %f', t)
+%                 sprintf('t = %f', t)
             end
         end
 

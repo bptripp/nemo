@@ -268,6 +268,7 @@ classdef Population < Node
     end    
     
     methods (Static) 
+
         % n: number of points to generate
         % radii: radii of ellipsoidal region in which points should lie
         %   (column vector)

@@ -76,8 +76,10 @@ classdef DecodedOrigin < Origin
 %             figure, scatter(points(1,:), points(2,:)), title(sprintf('%i points', n)), pause
             
             ideal = do.f(points);  
-            rates = do.getNoisyRates(points, T, relNoise);
+            rates = do.getNoisyRates(points, T, 0);            
             gamma = rates * rates';
+            gamma = gamma + (relNoise*max(rates(:)))^2*size(gamma,1) * eye(size(gamma,1));
+            
             dCorr = [];
             V = rates * ideal';
             i = 1;

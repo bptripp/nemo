@@ -91,9 +91,16 @@ classdef CosinePopulation < Population
         % 
         % Example: 
         % dim = 50; test = CosinePopulation.makeAggregatePopulation('product', dim, 100, 1, .002, .02, -1+2*rand(1,100*dim), 50+50*rand(1,100*dim), struct('x', @(x) x));
-        function result = makeAggregatePopulation(name, reps, n, radii, tauRef, tauRC, intercepts, maxRates, originFunctions)
+        function result = makeAggregatePopulation(name, reps, n, radii, tauRef, tauRC, intercepts, maxRates, originFunctions, varargin)
             assert(size(intercepts, 1) == 1, 'Intercepts should be 1 by reps*n');
             assert(size(intercepts, 2) == reps*n, 'Intercepts should be 1 by reps*n');
+            
+            encoders = [];
+            if ~isempty(varargin)
+                encoders = varargin{1};
+                assert(size(encoders, 1) == length(radii), 'Encoders should be length(radii) by reps*n');
+                assert(size(encoders, 2) == reps*n, 'Encoders should be length(radii) by reps*n');                
+            end
             
             dt = .001;
             originNames = fieldnames(originFunctions);
@@ -103,7 +110,12 @@ classdef CosinePopulation < Population
             for i = 1:reps
                 ind = (1:n)+(i-1)*n;
                 sg = LIFSpikeGenerator(dt, tauRef, tauRC, intercepts(ind), maxRates(ind), 0);
-                pop = CosinePopulation(radii, sg, name);
+                
+                if isempty(encoders)
+                    pop = CosinePopulation(radii, sg, name);
+                else
+                    pop = CosinePopulation(radii, sg, name, encoders(:,ind));
+                end
                 
                 for j = 1:length(originNames)
                     pop.addOrigin(originNames{j}, originFunctions.(originNames{j}));

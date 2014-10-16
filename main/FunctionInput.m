@@ -13,7 +13,6 @@ classdef FunctionInput < Node
         function in = FunctionInput(func)
             in.func = func;
             in.name = func2str(func);
-            class(func)
             assert(strcmp(class(func), 'function_handle'), 'Expected a function handle');
             testOutput = func(0);
             assert(size(testOutput, 2) == 1, 'Function output should be a column vector')

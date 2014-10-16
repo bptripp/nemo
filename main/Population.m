@@ -69,7 +69,6 @@ classdef Population < Node
             else 
                 x = varargin{1};
             end
-            
             biasDrive = zeros(1, p.spikeGenerator.n);
             for i = 1:length(p.terminations)
                 t = p.terminations{i};

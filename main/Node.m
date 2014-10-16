@@ -3,11 +3,11 @@ classdef Node < ModeConfigurable
     
     properties (Access = public)        
         name = [];
+        terminations = cell(1, 0);
     end
     
     properties (SetAccess = protected)
         origins = cell(1, 0);
-        terminations = cell(1, 0);
     end
     
     methods (Abstract)

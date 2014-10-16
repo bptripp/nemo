@@ -18,12 +18,12 @@ classdef LIFSpikeGenerator < SpikeGenerator
         V0 = []; 
         Gad0 = [];
         noiseSD = [];
+        lastSpike = []; 
     end
     
     properties (SetAccess = private) 
         V = []; 
         Gad = [];
-        lastSpike = []; 
 
         lastTime = [];
         lastCurrentState = [];        

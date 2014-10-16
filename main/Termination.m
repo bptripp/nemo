@@ -9,6 +9,7 @@ classdef Termination < Probeable
         %   Node
         name = [];
         node = [];
+        state = [];
     end
     
     properties (SetAccess = private)
@@ -23,7 +24,6 @@ classdef Termination < Probeable
         A = [];
         B = [];
         input = [];
-        state = [];
         time = [];
     end
     
@@ -87,7 +87,7 @@ classdef Termination < Probeable
         % simulation time, and updates the output. 
         % 
         % time: simulation time for which to integrate the Termination
-        function run(t, start, stop)
+        function run(t, start, stop)            
             time = stop - start;
             subStepTime = time / t.stepRatio;
                         

@@ -44,16 +44,19 @@ classdef PopulationModeModel < handle
     
     methods (Access = public)
         
-        function pmm = PopulationModeModel(pop) 
+        % biasPoints: points from which to interpolate bias
+        function pmm = PopulationModeModel(pop, biasPoints) 
             pmm.pop = pop;
             pmm.originIndices = makeOriginIndices(pmm.pop);
-            createBiasModel(pmm, pmm.originIndices);
+            createBiasModel(pmm, pmm.originIndices, biasPoints);
             createNoiseModel(pmm, pmm.originIndices);
         end
         
         % Models bias (a function of population state) in the population's 
         % DecodedOutputs. This is called via initialize() prior to run(...). 
-        function createBiasModel(pmm, originIndices)
+        % 
+        % biasPoints: points from which to interpolate bias
+        function createBiasModel(pmm, originIndices, biasPoints)
             p = pmm.pop;
             
             a = 3; % bias is modelled over a*[-radius radius] 
@@ -62,8 +65,9 @@ classdef PopulationModeModel < handle
             % higher dimensions we sample on a line and assume radial
             % symmetry 
             if length(p.radii) == 1
-                np = 301;
-                pmm.X = makeVector(a*p.radii(1), np);
+%                 np = 301;
+%                 pmm.X = makeVector(a*p.radii(1), np);
+                pmm.X = biasPoints;
                 pmm.biasValues = getBiasSamples(pmm, pmm.X);
             elseif length(p.radii) == 2
                 np = 101;

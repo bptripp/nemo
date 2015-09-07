@@ -59,6 +59,7 @@ classdef DecodedOrigin < Origin
         function varargout = findDecoders(do, varargin)
             maxCorrChange = NemoUtils.getOptionalArg(varargin, 2, 0, 'maxCorrChange', 1);
             T = NemoUtils.getOptionalArg(varargin, 3, 0, 'T', 1);
+%             relNoise = NemoUtils.getOptionalArg(varargin, 4, .2, 'relNoise', 1);
             relNoise = NemoUtils.getOptionalArg(varargin, 4, .05, 'relNoise', 1);
             assert(maxCorrChange < 1, 'maxCorrChange should be between 0 and 1')
             
@@ -68,7 +69,8 @@ classdef DecodedOrigin < Origin
             else 
                 pr = do.population.radii;
                 n = 300 + 1200*(length(pr)>1);
-                points = Population.genRandomPoints(n, pr, 2, do.population.ellipsoidRegion, do.population.offsets);
+                points = Population.genRandomPoints(n, pr, 0, do.population.ellipsoidRegion, do.population.offsets);
+%                 points = Population.genRandomPoints(n, pr, 2, do.population.ellipsoidRegion, do.population.offsets);
             end
 
 %             d = length(population.radii);

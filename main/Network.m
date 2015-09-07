@@ -57,16 +57,17 @@ classdef Network < Node
             taus = NemoUtils.getOptionalArg(varargin, 1, .01, 'points', [length(n.probes) 1]); 
             n.reset();
             
-            lastFigNum = max([0; findobj('Type', 'figure')]);
+%             lastFigNum = max([0; findobj('Type', 'figure')]);
+            lastFigNum = 0;
             
             n.setSimulationMode(ModeConfigurable.DEFAULT_MODE);
             n.run(start, stop);
             for i = 1:length(n.probes) 
                 h = plotProbe(n.probes(i), taus(i), lastFigNum+i, 1, 'b');
                 ls = get(h, 'LineStyle');
-                if ~isempty(ls) && ~strcmp(ls, 'none') 
-                    set(h, 'Color', [.4 .4 .4]);
-                end
+%                 if ~isempty(ls) && ~strcmp(ls, 'none') 
+%                     set(h, 'Color', [.4 .4 .4]);
+%                 end
             end
             n.reset();
             
@@ -75,10 +76,10 @@ classdef Network < Node
             for i = 1:length(n.probes) %TODO: no tau for spikes
                 h = plotProbe(n.probes(i), taus(i), lastFigNum+i, 0, 'k');
                 ls = get(h, 'LineStyle');
-                if ~isempty(ls) && ~strcmp(ls, 'none')
-                    set(h, 'LineWidth', 2)
-                    legend('spiking', 'direct')
-                end
+%                 if ~isempty(ls) && ~strcmp(ls, 'none')
+%                     set(h, 'LineWidth', 2)
+%                     legend('spiking', 'direct')
+%                 end
             end
 %             n.reset();
         end
@@ -143,8 +144,8 @@ classdef Network < Node
         % c: connection to be removed from the network
         function removeConnection(n, c)
             toRemove = [];
-            for i = 1:length(n.connection)
-                if eq(p, n.connections(i))
+            for i = 1:length(n.connections)
+                if eq(c, n.connections(i))
                     toRemove = [toRemove i];
                 end
             end

@@ -64,7 +64,7 @@ classdef LIFSpikeGenerator < SpikeGenerator
             sg.tauRC = tauRC;
             x = 1 ./ (1 - exp( (tauRef - (1 ./ maxRates)) / tauRC));
             sg.scales = (x - 1) ./ (1 - intercepts);
-            sg.biases = 1 - sg.scales .* intercepts
+            sg.biases = 1 - sg.scales .* intercepts;
             if length(V0) == 1
                 sg.V0 = ones(size(sg.scales)) * V0;
             else 
@@ -161,7 +161,7 @@ classdef LIFSpikeGenerator < SpikeGenerator
     
     methods (Access = private) 
         function spikes = step(sg, drive, startTime, endTime)            
-            assert(max(max(sg.lastSpike)) <= startTime, ...
+            assert(max(max(sg.lastSpike))-1e-6 <= startTime, ...
                 'Reset the SpikeGenerator before running from an earlier time (start time %f, last spike %f)', startTime, max(sg.lastSpike));
             instances = size(sg.V, 1);
             

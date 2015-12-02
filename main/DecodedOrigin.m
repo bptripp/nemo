@@ -80,7 +80,7 @@ classdef DecodedOrigin < Origin
             ideal = do.f(points);  
             rates = do.getNoisyRates(points, T, 0);            
             gamma = rates * rates';
-            gamma = gamma + (relNoise*max(rates(:)))^2*size(rates,1) * eye(size(gamma,1));
+            gamma = gamma + (relNoise*max(rates(:)))^2*size(rates,2) * eye(size(gamma,1));
             
             dCorr = [];
             V = rates * ideal';
